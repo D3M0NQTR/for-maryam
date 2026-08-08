@@ -709,10 +709,10 @@ button{font-family:inherit;}
         listenLabel: 'LISTEN',
         hugLabel: 'HUG',
         stayLabel: 'STAY',
-        talkText: 'I went quiet when you needed words. That’s on me.',
+        talkText: 'My jealousy got loud and rushed to fix us in a hurry — when all you needed was room to breathe. That’s on me.',
         listenText: '…I’m practicing.',
         hugText: 'I should have crossed the room. Both times.',
-        stayText: 'My jealousy got loud. It was never about not trusting you — it was about being terrified of losing you. That’s mine to fix.',
+        stayText: 'Leaving never once crossed my mind. but going cold is its own kind of leaving — and I’m done with both.',
         victoryText: '* THE ROUGH PATCH was defeated.\n* MJ and Mohammed gained 5 Years EXP.\n* It’s dangerous to go alone — stay with me.',
         unlockTitle: 'Rough Patch Defeated',
         unlockSub: 'won with TALK · LISTEN · HUG · STAY',
@@ -721,7 +721,7 @@ button{font-family:inherit;}
         updateVersion: 'Mohammed v5.0.1',
         updateName: 'The MJ Hotfix',
         bugsHeading: 'BUG FIXES',
-        bug1: 'Fixed critical bug where Player 1 went quiet instead of talking.',
+        bug1: 'Fixed critical bug where Player 1 rushed the fix instead of giving room to breathe.',
         bug2: 'Patched friendly-fire damage from stubbornness.',
         bug3: 'Resolved crash when asked ‘what’s wrong?’ (now returns honest answer).',
         featHeading: 'NEW FEATURES',
@@ -5348,7 +5348,7 @@ window.MJA_SCENES = window.MJA_SCENES || {};
       </div>
       <div class="bf-log">
         <h4 class="bf-h bf-hbug bf-rev">BUG FIXES</h4>
-        <p class="bf-line bf-rev bf-bug1">Fixed critical bug where Player 1 went quiet instead of talking.</p>
+        <p class="bf-line bf-rev bf-bug1">Fixed critical bug where Player 1 rushed the fix instead of giving room to breathe.</p>
         <p class="bf-line bf-rev bf-bug2">Patched friendly-fire damage from stubbornness.</p>
         <p class="bf-line bf-rev bf-bug3">Resolved crash when asked 'what's wrong?' (now returns honest answer).</p>
         <h4 class="bf-h bf-hfeat bf-rev">NEW FEATURES</h4>
@@ -5830,10 +5830,10 @@ window.MJA_SCENES = window.MJA_SCENES || {};
     btn.classList.add('used');
     lockCmds(root, true);
     var defaults = {
-      talk: 'I went quiet when you needed words. That’s on me.',
+      talk: 'My jealousy got loud and rushed to fix us in a hurry — when all you needed was room to breathe. That’s on me.',
       listen: '…I’m practicing.',
       hug: 'I should have crossed the room. Both times.',
-      stay: 'My jealousy got loud. It was never about not trusting you — it was about being terrified of losing you. That’s mine to fix.'
+      stay: 'Leaving never once crossed my mind. but going cold is its own kind of leaving — and I’m done with both.'
     };
     var line = t(App, name + 'Text', defaults[name]);
     var go = function () {
@@ -6044,7 +6044,7 @@ window.MJA_SCENES = window.MJA_SCENES || {};
         ['.bf-vername', 'updateVersion', 'Mohammed v5.0.1'],
         ['.bf-vertag', 'updateName', 'The MJ Hotfix'],
         ['.bf-hbug', 'bugsHeading', 'BUG FIXES'],
-        ['.bf-bug1', 'bug1', 'Fixed critical bug where Player 1 went quiet instead of talking.'],
+        ['.bf-bug1', 'bug1', 'Fixed critical bug where Player 1 rushed the fix instead of giving room to breathe.'],
         ['.bf-bug2', 'bug2', 'Patched friendly-fire damage from stubbornness.'],
         ['.bf-bug3', 'bug3', 'Resolved crash when asked ‘what’s wrong?’ (now returns honest answer).'],
         ['.bf-hfeat', 'featHeading', 'NEW FEATURES'],
