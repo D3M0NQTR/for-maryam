@@ -7487,7 +7487,13 @@ window.MJA_SCENES['letter'] = (function () {
   }
 
   function later(fn, ms) {
-    var id = setTimeout(function () { S.timers['delete'](id); fn(); }, ms);
+    var g = S.gen; /* stamp with the current run — stale steps abort */
+    var id = setTimeout(function () {
+      if (!S) return;
+      S.timers['delete'](id);
+      if (S.gen !== g) return;
+      fn();
+    }, ms);
     S.timers.add(id);
     return id;
   }
@@ -7697,6 +7703,7 @@ window.MJA_SCENES['letter'] = (function () {
         root: root,
         cfg: cfg,
         timers: new Set(),
+        gen: 0, /* bumped by enter()/exit(); later() aborts stale runs */
         queue: buildQueue(paragraphs),
         qi: 0,
         paras: paragraphs,
@@ -7745,6 +7752,7 @@ window.MJA_SCENES['letter'] = (function () {
     },
     enter: function (root, App) {
       if (!S) return;
+      S.gen++; /* a fresh run — anything an older run left in flight is void */
       if (App.idleSuspend) App.idleSuspend(); /* solemn beat: mute the idle gag */
       /* NG+ can flip mid-session (garden sets it) — rebuild the paragraph
          queue so the p.s. appears without needing a full page reload */
@@ -7762,11 +7770,37 @@ window.MJA_SCENES['letter'] = (function () {
         if (!S.opened) {
           S.queue = buildQueue(paragraphs);
           S.qi = 0;
-        } else if (S.finished) {
-          renderFinal(); /* re-render the finished letter with the p.s. */
         }
+        /* opened + finished falls through to the renderFinal below,
+           which picks up the p.s. automatically */
       }
       App.audio.play('sparkle');
+      if (S.finished) {
+        /* she read this letter on an earlier lap — show it whole
+           instantly and bring the continue pill back to life */
+        S.advanced = false;
+        renderFinal();
+        S.skipBtn.classList.remove('show');
+        S.contBtn.classList.add('show');
+        S.bongo.classList.remove('oops');
+        S.bongo.classList.add('on');
+        S.bongo.classList.add('yay');
+        return;
+      }
+      if (S.opened && !S.typing) {
+        /* exit() cut the envelope open mid-flourish last time — land
+           on the paper and start the typing cleanly */
+        S.envStage.classList.add('open');
+        S.envStage.classList.add('out');
+        S.envStage.classList.add('gone');
+        S.paperStage.classList.add('show');
+        if (S.reduced) { renderFinal(); finish(false); return; }
+        S.bongo.classList.add('on');
+        S.typing = true;
+        later(step, 450);
+        later(function () { if (!S.finished) S.skipBtn.classList.add('show'); }, 4000);
+        return;
+      }
       /* resume typing if we were interrupted mid-letter */
       if (S.opened && S.typing && !S.finished) {
         later(step, 450);
@@ -7777,7 +7811,9 @@ window.MJA_SCENES['letter'] = (function () {
       stopAll();
       if (App.idleResume) App.idleResume();
       if (S) {
+        S.gen++; /* void any step still in flight */
         S.bongo.classList.remove('oops');
+        S.caret.classList.remove('think'); /* a cut pause would strand this */
         S.App.audio.heartbeat(0);
       }
     }
