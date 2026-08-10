@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>US — 2D demo 🤍</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%A4%8D%3C/text%3E%3C/svg%3E">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;
+    -webkit-user-select:none;user-select:none}
+  html,body{height:100%;background:#120a1c;overflow:hidden;touch-action:none;
+    font-family:ui-rounded,-apple-system,"Segoe UI",system-ui,sans-serif;color:#fff}
+  #view{position:fixed;inset:0;display:block;image-rendering:pixelated}
+  /* controls */
+  #pad{position:fixed;left:16px;bottom:max(22px,env(safe-area-inset-bottom));width:150px;height:150px;z-index:6;touch-action:none}
+  .dbtn{position:absolute;width:50px;height:50px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);
+    border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff}
+  #up{left:50px;top:0}#down{left:50px;top:100px}#left{left:0;top:50px}#right{left:100px;top:50px}
+  #act{position:fixed;right:24px;bottom:max(40px,env(safe-area-inset-bottom));z-index:6;
+    width:78px;height:78px;border-radius:50%;border:2px solid rgba(255,182,214,.6);
+    background:radial-gradient(circle at 40% 35%,#ffd7e6,#f6a1c4);color:#5a1636;font-weight:900;font-size:22px;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(230,92,147,.5)}
+  .press{transform:scale(.9);filter:brightness(1.2)}
+  #bubble{position:fixed;left:50%;top:12%;transform:translateX(-50%);width:min(520px,90vw);z-index:7;
+    background:rgba(20,10,28,.9);border:1px solid rgba(255,182,214,.4);border-radius:16px;padding:16px 18px;
+    font-size:clamp(15px,4.4vw,18px);font-weight:600;line-height:1.5;opacity:0;transition:opacity .3s;pointer-events:none;
+    box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  #bubble.show{opacity:1}
+  #bubble .n{color:#ffb6d6;font-weight:800;display:block;margin-bottom:4px;font-size:13px;letter-spacing:.5px}
+  #hint{position:fixed;left:50%;top:4%;transform:translateX(-50%);z-index:6;font-size:13px;
+    color:rgba(255,255,255,.65);background:rgba(0,0,0,.3);padding:6px 12px;border-radius:20px;opacity:0;transition:opacity .3s}
+  #hint.show{opacity:1}
+  .over{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:18px;text-align:center;padding:34px;background:radial-gradient(120% 90% at 50% 40%,#2a1330,#160a22 60%,#0b0712);transition:opacity .8s}
+  .over.hide{opacity:0;pointer-events:none}
+  .ttl{font-family:"Snell Roundhand","Savoye LET",cursive;font-size:clamp(46px,16vw,92px);text-shadow:0 0 30px rgba(246,161,196,.7)}
+  .sub{font-size:clamp(15px,4.3vw,18px);color:rgba(255,255,255,.85);max-width:430px;line-height:1.55}
+  .btn{cursor:pointer;border:none;border-radius:999px;padding:15px 28px;font-family:inherit;font-size:16px;font-weight:800;
+    color:#4a1030;background:linear-gradient(180deg,#ffd7e6,#f6a1c4);box-shadow:0 10px 30px rgba(230,92,147,.5)}
+  .btn:active{transform:scale(.93)}
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="hint"></div>
+<div id="bubble"></div>
+
+<div id="pad">
+  <div class="dbtn" id="up">▲</div><div class="dbtn" id="down">▼</div>
+  <div class="dbtn" id="left">◀</div><div class="dbtn" id="right">▶</div>
+</div>
+<div id="act">A</div>
+
+<div class="over" id="start">
+  <div class="ttl">Us</div>
+  <div class="sub">a real 2D demo. move with the pad, tap <b>A</b> near things.<br>walk around your room. 🤍</div>
+  <button class="btn" id="beginBtn">▶ play</button>
+</div>
+
+<script>
+"use strict";
+(function(){
+  var cv=document.getElementById('view'), ctx=cv.getContext('2d');
+  var GW=176, GH=300;                    // internal pixel resolution
+  var scale=1, offx=0, offy=0, DPR=1;
+  function resize(){
+    DPR=Math.min(2,devicePixelRatio||1);
+    cv.width=innerWidth*DPR; cv.height=innerHeight*DPR;
+    cv.style.width=innerWidth+'px'; cv.style.height=innerHeight+'px';
+    scale=Math.floor(Math.min(innerWidth*DPR/GW, innerHeight*DPR/GH));
+    if(scale<1) scale=1;
+    offx=Math.floor((cv.width-GW*scale)/2); offy=Math.floor((cv.height-GH*scale)/2);
+    ctx.imageSmoothingEnabled=false;
+  }
+  addEventListener('resize',resize); resize();
+
+  var TILE=16;
+  // room grid: 0 floor, 1 wall, 2 furniture(solid). 11 wide
+  var COLS=11, ROWS=13;
+  var ROOMX=Math.floor((GW-COLS*TILE)/2), ROOMY=8;
+  var map=[];
+  (function(){
+    for(var r=0;r<ROWS;r++){ var row=[]; for(var c=0;c<COLS;c++){
+      row.push((r===0||c===0||c===COLS-1||r===ROWS-1)?1:0); } map.push(row); }
+  })();
+  // interactables & solids (in tile coords): [col,row,type,name,lines]
+  var things=[
+    {c:2,r:2,kind:'tv',   name:'YOUR SETUP',  say:"player 2's chair is still warm. he never really leaves."},
+    {c:8,r:2,kind:'couch',name:'THE COUCH',   say:"where you fall asleep on video call. every night."},
+    {c:5,r:10,kind:'coffee',name:'COFFEE',    say:"an iced americano. still cold. he remembered. of course he did."},
+    {c:2,r:8,kind:'leo',  name:'LEO',         say:"mrrrp… 🤍  (Leo's been waiting by the door since morning.)"},
+    {c:8,r:9,kind:'demon',name:'DEMON',       say:"Demon just stares at you. …then slow-blinks. he approves. (that's rare.)"}
+  ];
+  // mark furniture solid
+  things.forEach(function(t){ if(t.kind!=='leo'&&t.kind!=='demon') map[t.r][t.c]=2; });
+
+  var player={x:ROOMX+5*TILE+2, y:ROOMY+6*TILE, w:9, h:11, dir:'down', moving:false, t:0};
+
+  // ---------- input ----------
+  var keys={up:false,down:false,left:false,right:false};
+  function bind(id,k){
+    var el=document.getElementById(id);
+    var on=function(e){ keys[k]=true; el.classList.add('press'); if(e.cancelable)e.preventDefault(); };
+    var off=function(e){ keys[k]=false; el.classList.remove('press'); if(e&&e.cancelable)e.preventDefault(); };
+    el.addEventListener('pointerdown',on); el.addEventListener('pointerup',off);
+    el.addEventListener('pointerleave',off); el.addEventListener('pointercancel',off);
+  }
+  bind('up','up'); bind('down','down'); bind('left','left'); bind('right','right');
+  addEventListener('keydown',function(e){var k={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',KeyW:'up',KeyS:'down',KeyA:'left',KeyD:'right'}[e.code]; if(k){keys[k]=true;e.preventDefault();} if(e.code==='Space'){interact();e.preventDefault();}});
+  addEventListener('keyup',function(e){var k={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',KeyW:'up',KeyS:'down',KeyA:'left',KeyD:'right'}[e.code]; if(k){keys[k]=false;e.preventDefault();}});
+  var actBtn=document.getElementById('act');
+  actBtn.addEventListener('pointerdown',function(e){ actBtn.classList.add('press'); interact(); if(e.cancelable)e.preventDefault(); });
+  actBtn.addEventListener('pointerup',function(){ actBtn.classList.remove('press'); });
+
+  // ---------- collision ----------
+  function solidAt(px,py){
+    var c=Math.floor((px-ROOMX)/TILE), r=Math.floor((py-ROOMY)/TILE);
+    if(r<0||c<0||r>=ROWS||c>=COLS) return true;
+    return map[r][c]===1||map[r][c]===2;
+  }
+  function canMove(nx,ny){
+    return !solidAt(nx,ny)&&!solidAt(nx+player.w,ny)&&!solidAt(nx,ny+player.h)&&!solidAt(nx+player.w,ny+player.h);
+  }
+
+  // ---------- interact ----------
+  var bubble=document.getElementById('bubble'), hint=document.getElementById('hint'), bubbleT=0;
+  function nearThing(){
+    var pcx=player.x+player.w/2, pcy=player.y+player.h/2, best=null,bd=1e9;
+    things.forEach(function(t){
+      var tx=ROOMX+t.c*TILE+TILE/2, ty=ROOMY+t.r*TILE+TILE/2;
+      var d=Math.hypot(pcx-tx,pcy-ty); if(d<24&&d<bd){bd=d;best=t;}
+    });
+    return best;
+  }
+  function interact(){
+    var t=nearThing(); if(!t) return;
+    bubble.innerHTML='<span class="n">'+t.name+'</span>'+t.say;
+    bubble.classList.add('show'); bubbleT=3.2;
+  }
+
+  // ---------- pixel art ----------
+  function px(x,y,w,h,col){ ctx.fillStyle=col; ctx.fillRect(offx+Math.floor(x)*scale, offy+Math.floor(y)*scale, Math.ceil(w*scale), Math.ceil(h*scale)); }
+  function drawRoom(){
+    // floor
+    for(var r=0;r<ROWS;r++)for(var c=0;c<COLS;c++){
+      var x=ROOMX+c*TILE, y=ROOMY+r*TILE;
+      if(map[r][c]===1){ px(x,y,TILE,TILE,'#3a2b52'); px(x,y,TILE,3,'#4d3a68'); }
+      else { px(x,y,TILE,TILE, (r+c)%2? '#2a2140':'#2f2547'); }
+    }
+    // rug
+    px(ROOMX+3*TILE,ROOMY+5*TILE,5*TILE,4*TILE,'#7a3f63'); px(ROOMX+3*TILE+2,ROOMY+5*TILE+2,5*TILE-4,4*TILE-4,'#93507a');
+    // furniture sprites
+    things.forEach(function(t){
+      var x=ROOMX+t.c*TILE, y=ROOMY+t.r*TILE;
+      if(t.kind==='tv'){ px(x,y+3,TILE,10,'#1a1526'); px(x+1,y+4,TILE-2,7,'#68d0ff'); px(x+2,y+5,4,3,'#bfeeff'); }
+      else if(t.kind==='couch'){ px(x-3,y,TILE+6,12,'#4a5a8a'); px(x-3,y,TILE+6,4,'#6274ab'); }
+      else if(t.kind==='coffee'){ px(x+2,y+4,TILE-4,7,'#6b4a33'); px(x+5,y+2,5,4,'#d9c3b0'); }
+    });
+  }
+  function drawCat(x,y,big,base,dark){
+    var s=big?1.15:1;
+    px(x-4*s,y-2*s,9*s,7*s,base);           // body
+    px(x-5*s,y-6*s,7*s,6*s,base);           // head
+    px(x-5*s,y-7*s,2*s,2*s,dark); px(x+0*s,y-7*s,2*s,2*s,dark); // ears
+    px(x-4*s,y-4*s,1.4,1.4,'#20161f'); px(x-1*s,y-4*s,1.4,1.4,'#20161f'); // eyes
+    px(x+4*s,y-2*s,4*s,2*s,dark);           // tail
+  }
+  function drawPlayer(){
+    var x=player.x, y=player.y, step=(player.moving?Math.floor(player.t*6)%2:0);
+    // legs
+    px(x+1,y+9+ (step?0:0),2,2,'#2a2036'); px(x+6,y+9,2,2,'#2a2036');
+    // body (pink hoodie)
+    px(x,y+4,player.w,6,'#f6a1c4'); px(x,y+4,player.w,2,'#ffc0dc');
+    // head (fair skin)
+    px(x+1,y-2,7,6,'#f6d9c4');
+    // hair (long dark)
+    px(x,y-3,9,3,'#241a24');
+    if(player.dir==='down'){ px(x+2,y+1,1.4,1.4,'#20161f'); px(x+5,y+1,1.4,1.4,'#20161f'); px(x+3,y+3,2,1,'#d98aa8'); px(x-1,y,2,7,'#241a24'); px(x+8,y,2,7,'#241a24'); }
+    else if(player.dir==='up'){ px(x,y-3,9,7,'#241a24'); }
+    else if(player.dir==='left'){ px(x+1,y+1,1.6,1.6,'#20161f'); px(x-1,y-1,3,8,'#241a24'); }
+    else { px(x+5,y+1,1.6,1.6,'#20161f'); px(x+7,y-1,3,8,'#241a24'); }
+    // blonde streak
+    px(x+6,y-2,1,5,'#e8c98f');
+  }
+
+  // ---------- loop ----------
+  var running=false, last=0;
+  function frame(ts){
+    if(!running) return;
+    if(!last) last=ts; var dt=Math.min(0.05,(ts-last)/1000); last=ts;
+    // move
+    var sp=42*dt, nx=player.x, ny=player.y, mv=false;
+    if(keys.up){ ny-=sp; player.dir='up'; mv=true; }
+    else if(keys.down){ ny+=sp; player.dir='down'; mv=true; }
+    if(keys.left){ nx-=sp; player.dir='left'; mv=true; }
+    else if(keys.right){ nx+=sp; player.dir='right'; mv=true; }
+    if(canMove(nx,player.y)) player.x=nx;
+    if(canMove(player.x,ny)) player.y=ny;
+    player.moving=mv; if(mv) player.t+=dt;
+    // hint when near a thing
+    var nt=nearThing();
+    if(nt && bubbleT<=0){ hint.textContent='tap A — '+nt.name.toLowerCase(); hint.classList.add('show'); }
+    else hint.classList.remove('show');
+    if(bubbleT>0){ bubbleT-=dt; if(bubbleT<=0) bubble.classList.remove('show'); }
+    // draw
+    ctx.fillStyle='#0f0a18'; ctx.fillRect(0,0,cv.width,cv.height);
+    drawRoom();
+    // draw cats + player sorted by y for depth
+    var drawList=[{y:player.y,fn:drawPlayer}];
+    things.forEach(function(t){ if(t.kind==='leo') drawList.push({y:ROOMY+t.r*TILE,fn:function(){drawCat(ROOMX+t.c*TILE+8,ROOMY+t.r*TILE+8,false,'#c8a06a','#8a6a3f');}}); if(t.kind==='demon') drawList.push({y:ROOMY+t.r*TILE,fn:function(){drawCat(ROOMX+t.c*TILE+8,ROOMY+t.r*TILE+8,true,'#7a5a3a','#4d3925');}}); });
+    drawList.sort(function(a,b){return a.y-b.y;});
+    drawList.forEach(function(d){d.fn();});
+    // title strip
+    ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(offx,offy,GW*scale,7*scale);
+    ctx.fillStyle='#ffb6d6'; ctx.font=(5*scale)+'px ui-monospace,monospace'; ctx.textBaseline='top';
+    ctx.fillText('US  ·  your room', offx+3*scale, offy+1*scale);
+    requestAnimationFrame(frame);
+  }
+
+  document.getElementById('beginBtn').addEventListener('click',function(){
+    document.getElementById('start').classList.add('hide');
+    running=true; last=0; requestAnimationFrame(frame);
+    hint.textContent='walk around · tap A near things'; hint.classList.add('show');
+    setTimeout(function(){hint.classList.remove('show');},2600);
+  });
+})();
+</script>
+</body>
+</html>
